@@ -11,6 +11,7 @@
   --crimson: #B33A35;
   --crimson-hover: #C04640;
   --crimson-soft: rgba(179, 58, 53, 0.08);
+  --crimson-deeper: #8E2A26;
 
   --hairline: rgba(10, 10, 10, 0.08);
   --hairline-strong: rgba(10, 10, 10, 0.16);
@@ -43,3 +44,17 @@ body {
 .tabular { font-variant-numeric: tabular-nums; }
 
 ::selection { background: var(--crimson-soft); color: var(--ink); }
+
+/* Animación al agregar repeat-item */
+@keyframes slide-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.05s !important;
+  }
+  html { scroll-behavior: auto; }
+}

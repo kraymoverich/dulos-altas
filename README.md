@@ -39,29 +39,84 @@ Cada submission tiene este shape:
 {
   "id": "uuid-generado",
   "timestamp": "2026-05-17T...Z",
-  "productor": { "nombre": "...", "email": "...", "whatsapp": "..." },
+
+  "productor": {
+    "nombre": "...",
+    "email": "...",
+    "whatsapp": "..."
+  },
+
   "venue": {
-    "nombre": "...", "direccion": "...", "ciudad": "...",
-    "capacidad": "525", "mapa": "https://...",
+    "nombre": "...",
+    "direccion": "...",
+    "ciudad": "...",
+    "capacidad": "525",
+    "mapa": "https://drive.google.com/...",
     "asientosNumerados": true,
-    "filas": "20", "secciones": "3", "butacasPorFila": "25"
+    "filas": "20",
+    "secciones": "3",
+    "butacasPorFila": "25"
   },
+
   "evento": {
-    "nombre": "...", "descripcion": "...",
-    "categoria": "Concierto | Teatro | Festival | Comedia | Otro",
-    "imagen": "https://...", "galeria": "https://..."
+    "nombre": "...",
+    "descripcion": "...",
+    "categoria": "Teatro | Música | Comedia | Danza | Festival | Otro",
+    "subgenero": "Música barroca",
+    "duracion": "90",
+    "idioma": "Español | Inglés | Sin diálogo | Otro",
+    "aperturaPuertas": "30",
+    "imagen": "https://drive.google.com/...",
+    "galeria": "https://drive.google.com/drive/folders/..."
   },
+
   "fechas": {
     "tipo": "una | varias | multiday",
-    "funciones": [{ "fecha": "2026-06-13", "horaInicio": "20:00", "horaFin": "21:30" }]
+    "funciones": [
+      { "fecha": "2026-06-13", "horaInicio": "20:00", "horaFin": "21:30" }
+    ]
   },
+
   "zonas": [
     {
-      "nombre": "Diamante", "tipo": "GA | Asiento asignado",
-      "precio": "799", "precioPromo": "", "capacidad": "80",
+      "nombre": "Diamante",
+      "tipo": "GA | Asiento asignado",
+      "precio": "799",
+      "precioPromo": "",
+      "capacidad": "80",
       "filas": "A-D (centro)"
     }
   ],
+
+  "bloqueos": [
+    { "descripcion": "Fila A 1-6 cortesías productor", "cantidad": "6" }
+  ],
+
+  "logistica": {
+    "edadMinima": "Todas las edades | 12+ | 15+ | 18+",
+    "accesibilidad": ["Acceso silla de ruedas", "Acompañante sin costo"],
+    "restricciones": "Sin cámaras profesionales · Sin alimentos del exterior",
+    "politicaCancelacion": "",
+    "metodosPago": ["OXXO", "VISA", "Mastercard", "AMEX", "PayPal"],
+    "factura": "Sí, productor | Sí, venue | No"
+  },
+
+  "promocion": {
+    "redes": {
+      "instagram": "@productora",
+      "facebook": "facebook.com/...",
+      "web": "https://..."
+    },
+    "codigos": [
+      {
+        "codigo": "PRENSA20",
+        "tipo": "porcentaje | monto",
+        "valor": "20",
+        "vigencia": "2026-06-12"
+      }
+    ]
+  },
+
   "notas": "..."
 }
 ```
