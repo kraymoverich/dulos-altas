@@ -39,7 +39,8 @@ const TOC = [
   { id: "zonas", label: "Zonas y precios", num: "05" },
   { id: "logistica", label: "Logística", num: "06" },
   { id: "promocion", label: "Promoción", num: "07" },
-  { id: "notas", label: "Notas", num: "08" },
+  { id: "payout", label: "Payout", num: "08" },
+  { id: "notas", label: "Notas", num: "09" },
 ] as const;
 
 export default function Home() {
@@ -117,6 +118,13 @@ export default function Home() {
   const [redFacebook, setRedFacebook] = useState("");
   const [redWeb, setRedWeb] = useState("");
   const [codigos, setCodigos] = useState<Codigo[]>([]);
+
+  // Payout (datos bancarios)
+  const [payoutTitular, setPayoutTitular] = useState("");
+  const [payoutBanco, setPayoutBanco] = useState("");
+  const [payoutClabe, setPayoutClabe] = useState("");
+  const [payoutCuenta, setPayoutCuenta] = useState("");
+  const [payoutRfc, setPayoutRfc] = useState("");
 
   // Notas
   const [notas, setNotas] = useState("");
@@ -227,6 +235,13 @@ export default function Home() {
           web: redWeb,
         },
         codigos,
+      },
+      payout: {
+        titular: payoutTitular,
+        banco: payoutBanco,
+        clabe: payoutClabe,
+        cuenta: payoutCuenta,
+        rfc: payoutRfc,
       },
       notas,
       timestamp: new Date().toISOString(),
@@ -1596,10 +1611,108 @@ export default function Home() {
               </div>
             </section>
 
-            {/* 08 — Notas */}
+            {/* 08 — Payout */}
+            <section id="payout" className="section">
+              <div className="section-head">
+                <div>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 14 }}>
+                    <span className="section-num">08</span>
+                    <h2 className="section-title">Datos para payout</h2>
+                  </div>
+                  <p className="section-subtitle">
+                    Cuenta donde Dulos te transferirá las ventas. Solo el
+                    equipo administrativo de Dulos ve esta información.
+                  </p>
+                </div>
+              </div>
+
+              <div className="field">
+                <label className="label">Titular de la cuenta</label>
+                <input
+                  className="input"
+                  type="text"
+                  required
+                  value={payoutTitular}
+                  onChange={(e) => setPayoutTitular(e.target.value)}
+                  placeholder="Nombre completo o razón social como aparece en el banco"
+                />
+              </div>
+
+              <div className="field-row cols-2">
+                <div className="field">
+                  <label className="label">Banco</label>
+                  <input
+                    className="input"
+                    type="text"
+                    required
+                    value={payoutBanco}
+                    onChange={(e) => setPayoutBanco(e.target.value)}
+                    placeholder="BBVA · Santander · Banorte · etc."
+                  />
+                </div>
+                <div className="field">
+                  <label className="label">
+                    RFC del titular{" "}
+                    <span className="label-hint">opcional · para factura</span>
+                  </label>
+                  <input
+                    className="input tabular"
+                    type="text"
+                    value={payoutRfc}
+                    onChange={(e) =>
+                      setPayoutRfc(e.target.value.toUpperCase())
+                    }
+                    placeholder="XAXX010101000"
+                    maxLength={13}
+                  />
+                </div>
+              </div>
+
+              <div className="field">
+                <label className="label">
+                  CLABE interbancaria{" "}
+                  <span className="label-hint">18 dígitos</span>
+                </label>
+                <input
+                  className="input tabular"
+                  type="text"
+                  required
+                  inputMode="numeric"
+                  pattern="\d{18}"
+                  maxLength={18}
+                  value={payoutClabe}
+                  onChange={(e) =>
+                    setPayoutClabe(e.target.value.replace(/\D/g, ""))
+                  }
+                  placeholder="012345678901234567"
+                />
+                <p className="help">
+                  Necesaria para SPEI. La encuentras en tu app del banco
+                  → Cuenta → CLABE. Solo dígitos, sin espacios.
+                </p>
+              </div>
+
+              <div className="field" style={{ marginBottom: 0 }}>
+                <label className="label">
+                  Número de cuenta o tarjeta{" "}
+                  <span className="label-hint">opcional</span>
+                </label>
+                <input
+                  className="input tabular"
+                  type="text"
+                  value={payoutCuenta}
+                  onChange={(e) =>
+                    setPayoutCuenta(e.target.value.replace(/\D/g, ""))
+                  }
+                  placeholder="Solo si tu banco lo pide además de CLABE"
+                />
+              </div>
+            </section>
+
+            {/* 09 — Notas */}
             <section id="notas" className="section">
               <div className="section-head">
-                <span className="section-num">08</span>
+                <span className="section-num">09</span>
                 <h2 className="section-title">Comentarios adicionales</h2>
               </div>
               <div className="field" style={{ marginBottom: 0 }}>

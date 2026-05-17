@@ -117,9 +117,21 @@ Cada submission tiene este shape:
     ]
   },
 
+  "payout": {
+    "titular": "Nombre completo o razón social",
+    "banco": "BBVA",
+    "clabe": "012345678901234567",
+    "cuenta": "",
+    "rfc": "XAXX010101000"
+  },
+
   "notas": "..."
 }
 ```
+
+> **Sensible:** los datos de `payout` solo deben ser visibles para el equipo
+> administrativo de Dulos. Cuando conectes a una DB, considera filtrar este
+> bloque al rol normal y exponerlo solo en el endpoint admin.
 
 ## Conectar a storage externo
 
