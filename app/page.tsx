@@ -402,7 +402,9 @@ export default function Home() {
       arr.includes(val) ? arr.filter((v) => v !== val) : [...arr, val]
     );
 
-  // — Progress & section completeness
+  // — Section completeness
+  // Required: deben tener todos sus campos válidos
+  // Opcional: palomita solo si el usuario llenó algo (no por default)
   const sectionsComplete = useMemo(() => {
     const c: Record<string, boolean> = {};
     c.productor =
@@ -421,17 +423,31 @@ export default function Home() {
       !!eventoDuracion &&
       isUrlValid(eventoImagen);
     c.fechas = funciones.every((f) => f.fecha && f.horaInicio);
-    c.zonas = zonas.every(
-      (z) => z.nombre && z.precio && z.capacidad
-    );
-    c.logistica = true; // todo opcional / con defaults
-    c.promocion = true; // todo opcional
+    c.zonas = zonas.every((z) => z.nombre && z.precio && z.capacidad);
     c.payout =
       !!payoutTitular &&
       !!payoutBanco &&
       isClabeValid(payoutClabe) &&
       isRfcValid(payoutRfc);
-    c.notas = true; // opcional
+
+    // Opcionales: completas solo si hay datos no-default
+    const metodosPagoTocado =
+      metodosPago.length !== METODOS_PAGO_DEFAULT.length ||
+      !METODOS_PAGO_DEFAULT.every((m) => metodosPago.includes(m));
+    c.logistica =
+      edadMinima !== "Todas las edades" ||
+      accesibilidad.length > 0 ||
+      restricciones.trim() !== "" ||
+      politicaCancelacion.trim() !== "" ||
+      metodosPagoTocado ||
+      factura !== "No";
+    c.promocion =
+      redInstagram.trim() !== "" ||
+      redFacebook.trim() !== "" ||
+      redWeb.trim() !== "" ||
+      codigos.length > 0;
+    c.notas = notas.trim() !== "";
+
     return c;
   }, [
     productorNombre, productorEmail, productorWhatsapp,
@@ -439,16 +455,31 @@ export default function Home() {
     eventoNombre, eventoDescripcion, eventoDuracion, eventoImagen,
     funciones, zonas,
     payoutTitular, payoutBanco, payoutClabe, payoutRfc,
+    edadMinima, accesibilidad, restricciones, politicaCancelacion,
+    metodosPago, factura,
+    redInstagram, redFacebook, redWeb, codigos,
+    notas,
   ]);
 
+  // Secciones obligatorias para enviar el form
+  const REQUIRED_SECTIONS = [
+    "productor",
+    "venue",
+    "evento",
+    "fechas",
+    "zonas",
+    "payout",
+  ] as const;
+
+  // Progress se mide solo sobre las required (las opcionales son bonus)
   const progress = useMemo(() => {
-    const total = TOC.length;
-    const done = TOC.filter((t) => sectionsComplete[t.id]).length;
+    const total = REQUIRED_SECTIONS.length;
+    const done = REQUIRED_SECTIONS.filter((id) => sectionsComplete[id]).length;
     return Math.round((done / total) * 100);
   }, [sectionsComplete]);
 
   const allComplete = useMemo(
-    () => TOC.every((t) => sectionsComplete[t.id]),
+    () => REQUIRED_SECTIONS.every((id) => sectionsComplete[id]),
     [sectionsComplete]
   );
 
