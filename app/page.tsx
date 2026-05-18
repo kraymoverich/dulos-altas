@@ -950,8 +950,8 @@ export default function Home() {
                 </div>
                 <div className="field">
                   <label className="label">
-                    Apertura de puertas{" "}
-                    <span className="label-hint">min antes</span>
+                    Puertas abren antes{" "}
+                    <span className="label-hint">minutos</span>
                   </label>
                   <input
                     className="input tabular"
@@ -963,6 +963,10 @@ export default function Home() {
                     }
                     placeholder="30"
                   />
+                  <p className="help">
+                    Cuántos minutos antes del inicio se abre el acceso al
+                    recinto. Estándar: 30 min antes.
+                  </p>
                 </div>
               </div>
 
