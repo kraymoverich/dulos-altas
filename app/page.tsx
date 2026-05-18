@@ -872,13 +872,16 @@ export default function Home() {
               </div>
 
               <div className="field">
-                <label className="label">Descripción</label>
+                <label className="label">
+                  Sinopsis{" "}
+                  <span className="label-hint">2-4 párrafos editoriales</span>
+                </label>
                 <textarea
                   className="textarea"
                   required
                   value={eventoDescripcion}
                   onChange={(e) => setEventoDescripcion(e.target.value)}
-                  placeholder="Qué va a ver el público — 2-4 párrafos editoriales. Sin marketing genérico."
+                  placeholder="Describe el evento como lo haría un curador: qué va a presenciar el público, el repertorio o estructura, el contexto. Sin marketing genérico."
                 />
               </div>
 
