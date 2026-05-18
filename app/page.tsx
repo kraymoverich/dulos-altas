@@ -76,6 +76,7 @@ export default function Home() {
   const [eventoAperturaPuertas, setEventoAperturaPuertas] = useState("30");
   const [eventoImagen, setEventoImagen] = useState("");
   const [eventoGaleria, setEventoGaleria] = useState("");
+  const [eventoVideos, setEventoVideos] = useState("");
 
   // Fechas
   const [tipoFechas, setTipoFechas] = useState<
@@ -216,6 +217,7 @@ export default function Home() {
         aperturaPuertas: eventoAperturaPuertas,
         imagen: eventoImagen,
         galeria: eventoGaleria,
+        videos: eventoVideos,
       },
       fechas: { tipo: tipoFechas, funciones },
       zonas,
@@ -964,21 +966,22 @@ export default function Home() {
                 </div>
               </div>
 
+              <div className="field">
+                <label className="label">
+                  Imagen principal{" "}
+                  <span className="label-hint">link Drive · vertical 4:5 ideal</span>
+                </label>
+                <input
+                  className="input"
+                  type="url"
+                  required
+                  value={eventoImagen}
+                  onChange={(e) => setEventoImagen(e.target.value)}
+                  placeholder="https://drive.google.com/..."
+                />
+              </div>
+
               <div className="field-row cols-2">
-                <div className="field">
-                  <label className="label">
-                    Imagen principal{" "}
-                    <span className="label-hint">link Drive · vertical 4:5 ideal</span>
-                  </label>
-                  <input
-                    className="input"
-                    type="url"
-                    required
-                    value={eventoImagen}
-                    onChange={(e) => setEventoImagen(e.target.value)}
-                    placeholder="https://drive.google.com/..."
-                  />
-                </div>
                 <div className="field">
                   <label className="label">
                     Galería de fotos{" "}
@@ -989,6 +992,19 @@ export default function Home() {
                     type="url"
                     value={eventoGaleria}
                     onChange={(e) => setEventoGaleria(e.target.value)}
+                    placeholder="https://drive.google.com/drive/folders/..."
+                  />
+                </div>
+                <div className="field">
+                  <label className="label">
+                    Galería de videos{" "}
+                    <span className="label-hint">opcional · carpeta Drive</span>
+                  </label>
+                  <input
+                    className="input"
+                    type="url"
+                    value={eventoVideos}
+                    onChange={(e) => setEventoVideos(e.target.value)}
                     placeholder="https://drive.google.com/drive/folders/..."
                   />
                 </div>

@@ -67,7 +67,8 @@ Cada submission tiene este shape:
     "idioma": "Español | Inglés | Sin diálogo | Otro",
     "aperturaPuertas": "30",
     "imagen": "https://drive.google.com/...",
-    "galeria": "https://drive.google.com/drive/folders/..."
+    "galeria": "https://drive.google.com/drive/folders/...",
+    "videos": "https://drive.google.com/drive/folders/..."
   },
 
   "fechas": {
