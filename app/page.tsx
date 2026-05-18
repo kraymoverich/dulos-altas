@@ -1362,26 +1362,17 @@ export default function Home() {
               </div>
 
               <div className="field">
-                <label className="label">
-                  Accesibilidad <span className="label-hint">marca todas las que apliquen</span>
+                <label className="label">Accesibilidad</label>
+                <label className="checkbox-row">
+                  <input
+                    type="checkbox"
+                    checked={accesibilidad.includes("Acceso silla de ruedas")}
+                    onChange={() =>
+                      toggleAccesibilidad("Acceso silla de ruedas")
+                    }
+                  />
+                  <span>El recinto tiene acceso para silla de ruedas</span>
                 </label>
-                <div className="check-grid">
-                  {[
-                    "Acceso silla de ruedas",
-                    "Acompañante sin costo",
-                    "Apto baja audición",
-                    "Apto baja visión",
-                  ].map((opt) => (
-                    <label key={opt} className="checkbox-row">
-                      <input
-                        type="checkbox"
-                        checked={accesibilidad.includes(opt)}
-                        onChange={() => toggleAccesibilidad(opt)}
-                      />
-                      <span>{opt}</span>
-                    </label>
-                  ))}
-                </div>
               </div>
 
               <div className="field">
