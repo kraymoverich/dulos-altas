@@ -139,6 +139,34 @@ body {
   align-items: center;
   gap: 6px;
 }
+.input-prefix-select {
+  padding: 13px 30px 13px 16px;
+  font-family: inherit;
+  font-size: 0.95rem;
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+  border: none;
+  border-right: 1px solid var(--hairline);
+  background: transparent;
+  cursor: pointer;
+  outline: none;
+  font-weight: 500;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='none' stroke='%23999' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round' d='M1 1l4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 10px 6px;
+  max-width: 130px;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.input-prefix-select:hover { color: var(--ink); }
+.input-prefix-select:focus {
+  color: var(--ink);
+  background-color: var(--field-hover);
+}
 .input-prefixed .input {
   border: none !important;
   background: transparent !important;

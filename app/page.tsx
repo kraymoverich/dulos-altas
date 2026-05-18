@@ -31,6 +31,29 @@ const CATEGORIAS = [
 
 const METODOS_PAGO_DEFAULT = ["OXXO", "VISA", "Mastercard", "AMEX", "PayPal"];
 
+const COUNTRIES = [
+  { code: "+52", flag: "🇲🇽", name: "México" },
+  { code: "+1", flag: "🇺🇸", name: "Estados Unidos / Canadá" },
+  { code: "+34", flag: "🇪🇸", name: "España" },
+  { code: "+54", flag: "🇦🇷", name: "Argentina" },
+  { code: "+55", flag: "🇧🇷", name: "Brasil" },
+  { code: "+56", flag: "🇨🇱", name: "Chile" },
+  { code: "+57", flag: "🇨🇴", name: "Colombia" },
+  { code: "+51", flag: "🇵🇪", name: "Perú" },
+  { code: "+58", flag: "🇻🇪", name: "Venezuela" },
+  { code: "+593", flag: "🇪🇨", name: "Ecuador" },
+  { code: "+598", flag: "🇺🇾", name: "Uruguay" },
+  { code: "+506", flag: "🇨🇷", name: "Costa Rica" },
+  { code: "+507", flag: "🇵🇦", name: "Panamá" },
+  { code: "+503", flag: "🇸🇻", name: "El Salvador" },
+  { code: "+502", flag: "🇬🇹", name: "Guatemala" },
+  { code: "+44", flag: "🇬🇧", name: "Reino Unido" },
+  { code: "+33", flag: "🇫🇷", name: "Francia" },
+  { code: "+49", flag: "🇩🇪", name: "Alemania" },
+  { code: "+39", flag: "🇮🇹", name: "Italia" },
+  { code: "+81", flag: "🇯🇵", name: "Japón" },
+] as const;
+
 const TOC = [
   { id: "productor", label: "Productor", num: "01" },
   { id: "venue", label: "Venue", num: "02" },
@@ -69,7 +92,7 @@ const IconX = () => (
 
 // — Validators
 const isEmailValid = (s: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.trim());
-const isWhatsappValid = (s: string) => s.replace(/\D/g, "").length >= 10;
+const isWhatsappValid = (s: string) => s.replace(/\D/g, "").length >= 7;
 const isUrlValid = (s: string) =>
   !s ? false : /^https?:\/\/.+\..+/.test(s.trim());
 const isRfcValid = (s: string) =>
@@ -84,6 +107,7 @@ export default function Home() {
   // — Estado del form
   const [productorNombre, setProductorNombre] = useState("");
   const [productorEmail, setProductorEmail] = useState("");
+  const [productorWhatsappPais, setProductorWhatsappPais] = useState("+52");
   const [productorWhatsapp, setProductorWhatsapp] = useState("");
 
   const [venueNombre, setVenueNombre] = useState("");
@@ -168,7 +192,9 @@ export default function Home() {
       productor: {
         nombre: productorNombre,
         email: productorEmail,
+        whatsappPais: productorWhatsappPais,
         whatsapp: productorWhatsapp,
+        whatsappCompleto: `${productorWhatsappPais} ${productorWhatsapp}`.trim(),
       },
       venue: {
         nombre: venueNombre,
@@ -222,7 +248,7 @@ export default function Home() {
       notas,
     }),
     [
-      productorNombre, productorEmail, productorWhatsapp,
+      productorNombre, productorEmail, productorWhatsappPais, productorWhatsapp,
       venueNombre, venueDireccion, venueCiudad, venueCapacidad, venueMapa,
       venueAsientosNumerados, venueFilas, venueSecciones, venueButacasPorFila,
       eventoNombre, eventoDescripcion, eventoCategoria, eventoSubgenero,
@@ -247,6 +273,7 @@ export default function Home() {
         // hidratar — solo si el campo existe en draft, evita errores
         setProductorNombre(d.productor?.nombre || "");
         setProductorEmail(d.productor?.email || "");
+        setProductorWhatsappPais(d.productor?.whatsappPais || "+52");
         setProductorWhatsapp(d.productor?.whatsapp || "");
         setVenueNombre(d.venue?.nombre || "");
         setVenueDireccion(d.venue?.direccion || "");
@@ -1033,7 +1060,20 @@ export default function Home() {
               <div className="field" style={{ marginBottom: 0 }}>
                 <label className="label">WhatsApp</label>
                 <div className="input-prefixed">
-                  <span className="input-prefix">🇲🇽 +52</span>
+                  <select
+                    className="input-prefix-select"
+                    value={productorWhatsappPais}
+                    onChange={(e) =>
+                      setProductorWhatsappPais(e.target.value)
+                    }
+                    aria-label="Código de país"
+                  >
+                    {COUNTRIES.map((c) => (
+                      <option key={c.code} value={c.code}>
+                        {c.flag} {c.code} · {c.name}
+                      </option>
+                    ))}
+                  </select>
                   <input
                     className="input tabular"
                     type="tel"
@@ -1047,6 +1087,12 @@ export default function Home() {
                     placeholder="55 0000 0000"
                   />
                 </div>
+                {productorWhatsapp &&
+                  !isWhatsappValid(productorWhatsapp) && (
+                    <p className="help is-error">
+                      Número incompleto — necesita al menos 7 dígitos (sin contar lada país).
+                    </p>
+                  )}
               </div>
             </section>
 
