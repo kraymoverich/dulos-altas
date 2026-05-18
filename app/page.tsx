@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 
 type Funcion = { fecha: string; horaInicio: string; horaFin: string };
@@ -43,19 +43,52 @@ const TOC = [
   { id: "notas", label: "Notas", num: "09" },
 ] as const;
 
+const DRAFT_KEY = "dulos-altas-draft-v2";
+
+// — Iconos inline (sin librería)
+const IconPlus = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
+    <path d="M12 5v14M5 12h14" />
+  </svg>
+);
+const IconCheck = ({ size = 12 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M20 6L9 17l-5-5" />
+  </svg>
+);
+const IconArrow = () => (
+  <svg width="16" height="14" viewBox="0 0 18 14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M1 7h15M11 1l5 6-5 6" />
+  </svg>
+);
+const IconX = () => (
+  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+    <path d="M18 6L6 18M6 6l12 12" />
+  </svg>
+);
+
+// — Validators
+const isEmailValid = (s: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.trim());
+const isWhatsappValid = (s: string) => s.replace(/\D/g, "").length >= 10;
+const isUrlValid = (s: string) =>
+  !s ? false : /^https?:\/\/.+\..+/.test(s.trim());
+const isRfcValid = (s: string) =>
+  !s ? true : /^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$/.test(s.trim());
+const isClabeValid = (s: string) => /^\d{18}$/.test(s);
+
 export default function Home() {
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
+  const [loaded, setLoaded] = useState(false);
 
-  // Productor
+  // — Estado del form
   const [productorNombre, setProductorNombre] = useState("");
   const [productorEmail, setProductorEmail] = useState("");
   const [productorWhatsapp, setProductorWhatsapp] = useState("");
 
-  // Venue
   const [venueNombre, setVenueNombre] = useState("");
   const [venueDireccion, setVenueDireccion] = useState("");
-  const [venueCiudad, setVenueCiudad] = useState("");
+  const [venueCiudad, setVenueCiudad] = useState("Ciudad de México, CDMX");
   const [venueCapacidad, setVenueCapacidad] = useState("");
   const [venueMapa, setVenueMapa] = useState("");
   const [venueAsientosNumerados, setVenueAsientosNumerados] = useState(false);
@@ -63,7 +96,6 @@ export default function Home() {
   const [venueSecciones, setVenueSecciones] = useState("");
   const [venueButacasPorFila, setVenueButacasPorFila] = useState("");
 
-  // Evento
   const [eventoNombre, setEventoNombre] = useState("");
   const [eventoDescripcion, setEventoDescripcion] = useState("");
   const [eventoCategoria, setEventoCategoria] =
@@ -78,7 +110,6 @@ export default function Home() {
   const [eventoGaleria, setEventoGaleria] = useState("");
   const [eventoVideos, setEventoVideos] = useState("");
 
-  // Fechas
   const [tipoFechas, setTipoFechas] = useState<
     "una" | "varias" | "multiday"
   >("una");
@@ -86,7 +117,6 @@ export default function Home() {
     { fecha: "", horaInicio: "", horaFin: "" },
   ]);
 
-  // Zonas
   const [zonas, setZonas] = useState<Zona[]>([
     {
       nombre: "",
@@ -97,11 +127,8 @@ export default function Home() {
       filas: "",
     },
   ]);
-
-  // Bloqueos (asientos no a la venta)
   const [bloqueos, setBloqueos] = useState<Bloqueo[]>([]);
 
-  // Logística
   const [edadMinima, setEdadMinima] = useState<
     "Todas las edades" | "12+" | "15+" | "18+"
   >("Todas las edades");
@@ -114,83 +141,30 @@ export default function Home() {
     "Sí, productor" | "Sí, venue" | "No"
   >("No");
 
-  // Promoción
   const [redInstagram, setRedInstagram] = useState("");
   const [redFacebook, setRedFacebook] = useState("");
   const [redWeb, setRedWeb] = useState("");
   const [codigos, setCodigos] = useState<Codigo[]>([]);
 
-  // Payout (datos bancarios)
   const [payoutTitular, setPayoutTitular] = useState("");
   const [payoutBanco, setPayoutBanco] = useState("");
   const [payoutClabe, setPayoutClabe] = useState("");
   const [payoutCuenta, setPayoutCuenta] = useState("");
   const [payoutRfc, setPayoutRfc] = useState("");
 
-  // Notas
   const [notas, setNotas] = useState("");
 
-  // Helpers
-  const addFuncion = () =>
-    setFunciones((f) => [...f, { fecha: "", horaInicio: "", horaFin: "" }]);
-  const removeFuncion = (i: number) =>
-    setFunciones((f) => f.filter((_, idx) => idx !== i));
-  const updateFuncion = (i: number, patch: Partial<Funcion>) =>
-    setFunciones((f) =>
-      f.map((it, idx) => (idx === i ? { ...it, ...patch } : it))
-    );
+  // — UX states
+  const [isSaving, setIsSaving] = useState(false);
+  const [savedAt, setSavedAt] = useState<number | null>(null);
+  const [activeSection, setActiveSection] = useState<string>("productor");
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [showStickySubmit, setShowStickySubmit] = useState(false);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const addZona = () =>
-    setZonas((z) => [
-      ...z,
-      {
-        nombre: "",
-        tipo: "GA",
-        precio: "",
-        precioPromo: "",
-        capacidad: "",
-        filas: "",
-      },
-    ]);
-  const removeZona = (i: number) =>
-    setZonas((z) => z.filter((_, idx) => idx !== i));
-  const updateZona = (i: number, patch: Partial<Zona>) =>
-    setZonas((z) => z.map((it, idx) => (idx === i ? { ...it, ...patch } : it)));
-
-  const addBloqueo = () =>
-    setBloqueos((b) => [...b, { descripcion: "", cantidad: "" }]);
-  const removeBloqueo = (i: number) =>
-    setBloqueos((b) => b.filter((_, idx) => idx !== i));
-  const updateBloqueo = (i: number, patch: Partial<Bloqueo>) =>
-    setBloqueos((b) =>
-      b.map((it, idx) => (idx === i ? { ...it, ...patch } : it))
-    );
-
-  const addCodigo = () =>
-    setCodigos((c) => [
-      ...c,
-      { codigo: "", tipo: "porcentaje", valor: "", vigencia: "" },
-    ]);
-  const removeCodigo = (i: number) =>
-    setCodigos((c) => c.filter((_, idx) => idx !== i));
-  const updateCodigo = (i: number, patch: Partial<Codigo>) =>
-    setCodigos((c) =>
-      c.map((it, idx) => (idx === i ? { ...it, ...patch } : it))
-    );
-
-  const toggleAccesibilidad = (val: string) =>
-    setAccesibilidad((arr) =>
-      arr.includes(val) ? arr.filter((v) => v !== val) : [...arr, val]
-    );
-  const togglePago = (val: string) =>
-    setMetodosPago((arr) =>
-      arr.includes(val) ? arr.filter((v) => v !== val) : [...arr, val]
-    );
-
-  const onSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    setSubmitting(true);
-    const payload = {
+  // — Payload (memo)
+  const payload = useMemo(
+    () => ({
       productor: {
         nombre: productorNombre,
         email: productorEmail,
@@ -246,23 +220,296 @@ export default function Home() {
         rfc: payoutRfc,
       },
       notas,
-      timestamp: new Date().toISOString(),
-    };
+    }),
+    [
+      productorNombre, productorEmail, productorWhatsapp,
+      venueNombre, venueDireccion, venueCiudad, venueCapacidad, venueMapa,
+      venueAsientosNumerados, venueFilas, venueSecciones, venueButacasPorFila,
+      eventoNombre, eventoDescripcion, eventoCategoria, eventoSubgenero,
+      eventoDuracion, eventoIdioma, eventoAperturaPuertas, eventoImagen,
+      eventoGaleria, eventoVideos,
+      tipoFechas, funciones,
+      zonas, bloqueos,
+      edadMinima, accesibilidad, restricciones, politicaCancelacion,
+      metodosPago, factura,
+      redInstagram, redFacebook, redWeb, codigos,
+      payoutTitular, payoutBanco, payoutClabe, payoutCuenta, payoutRfc,
+      notas,
+    ]
+  );
 
+  // — Restore draft on mount
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY);
+      if (raw) {
+        const d = JSON.parse(raw);
+        // hidratar — solo si el campo existe en draft, evita errores
+        setProductorNombre(d.productor?.nombre || "");
+        setProductorEmail(d.productor?.email || "");
+        setProductorWhatsapp(d.productor?.whatsapp || "");
+        setVenueNombre(d.venue?.nombre || "");
+        setVenueDireccion(d.venue?.direccion || "");
+        setVenueCiudad(d.venue?.ciudad || "Ciudad de México, CDMX");
+        setVenueCapacidad(d.venue?.capacidad || "");
+        setVenueMapa(d.venue?.mapa || "");
+        setVenueAsientosNumerados(!!d.venue?.asientosNumerados);
+        setVenueFilas(d.venue?.filas || "");
+        setVenueSecciones(d.venue?.secciones || "");
+        setVenueButacasPorFila(d.venue?.butacasPorFila || "");
+        setEventoNombre(d.evento?.nombre || "");
+        setEventoDescripcion(d.evento?.descripcion || "");
+        setEventoCategoria(d.evento?.categoria || "Música");
+        setEventoSubgenero(d.evento?.subgenero || "");
+        setEventoDuracion(d.evento?.duracion || "");
+        setEventoIdioma(d.evento?.idioma || "Español");
+        setEventoAperturaPuertas(d.evento?.aperturaPuertas || "30");
+        setEventoImagen(d.evento?.imagen || "");
+        setEventoGaleria(d.evento?.galeria || "");
+        setEventoVideos(d.evento?.videos || "");
+        setTipoFechas(d.fechas?.tipo || "una");
+        if (d.fechas?.funciones?.length)
+          setFunciones(d.fechas.funciones);
+        if (d.zonas?.length) setZonas(d.zonas);
+        if (d.bloqueos?.length) setBloqueos(d.bloqueos);
+        setEdadMinima(d.logistica?.edadMinima || "Todas las edades");
+        setAccesibilidad(d.logistica?.accesibilidad || []);
+        setRestricciones(d.logistica?.restricciones || "");
+        setPoliticaCancelacion(d.logistica?.politicaCancelacion || "");
+        setMetodosPago(d.logistica?.metodosPago || METODOS_PAGO_DEFAULT);
+        setFactura(d.logistica?.factura || "No");
+        setRedInstagram(d.promocion?.redes?.instagram || "");
+        setRedFacebook(d.promocion?.redes?.facebook || "");
+        setRedWeb(d.promocion?.redes?.web || "");
+        setCodigos(d.promocion?.codigos || []);
+        setPayoutTitular(d.payout?.titular || "");
+        setPayoutBanco(d.payout?.banco || "");
+        setPayoutClabe(d.payout?.clabe || "");
+        setPayoutCuenta(d.payout?.cuenta || "");
+        setPayoutRfc(d.payout?.rfc || "");
+        setNotas(d.notas || "");
+      }
+    } catch (e) {
+      console.warn("draft restore failed", e);
+    }
+    setLoaded(true);
+  }, []);
+
+  // — Autosave (debounced)
+  useEffect(() => {
+    if (!loaded) return;
+    setIsSaving(true);
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      try {
+        localStorage.setItem(DRAFT_KEY, JSON.stringify(payload));
+        setIsSaving(false);
+        setSavedAt(Date.now());
+      } catch (e) {
+        console.warn("draft save failed", e);
+        setIsSaving(false);
+      }
+    }, 700);
+    return () => {
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+    };
+  }, [payload, loaded]);
+
+  // — Scroll-spy
+  useEffect(() => {
+    const sections = TOC.map((t) => document.getElementById(t.id)).filter(
+      Boolean
+    ) as HTMLElement[];
+    if (!sections.length) return;
+
+    const obs = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((e) => e.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio);
+        if (visible.length > 0) setActiveSection(visible[0].target.id);
+      },
+      { rootMargin: "-30% 0px -55% 0px", threshold: [0, 0.25, 0.5, 0.75, 1] }
+    );
+    sections.forEach((s) => obs.observe(s));
+    return () => obs.disconnect();
+  }, []);
+
+  // — Sticky submit visible solo después de scroll
+  useEffect(() => {
+    const onScroll = () => setShowStickySubmit(window.scrollY > 600);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  // — Helpers
+  const addFuncion = () =>
+    setFunciones((f) => [...f, { fecha: "", horaInicio: "", horaFin: "" }]);
+  const removeFuncion = (i: number) =>
+    setFunciones((f) => f.filter((_, idx) => idx !== i));
+  const updateFuncion = (i: number, patch: Partial<Funcion>) =>
+    setFunciones((f) =>
+      f.map((it, idx) => (idx === i ? { ...it, ...patch } : it))
+    );
+
+  const addZona = () =>
+    setZonas((z) => [
+      ...z,
+      {
+        nombre: "",
+        tipo: "GA",
+        precio: "",
+        precioPromo: "",
+        capacidad: "",
+        filas: "",
+      },
+    ]);
+  const removeZona = (i: number) =>
+    setZonas((z) => z.filter((_, idx) => idx !== i));
+  const updateZona = (i: number, patch: Partial<Zona>) =>
+    setZonas((z) =>
+      z.map((it, idx) => (idx === i ? { ...it, ...patch } : it))
+    );
+
+  const addBloqueo = () =>
+    setBloqueos((b) => [...b, { descripcion: "", cantidad: "" }]);
+  const removeBloqueo = (i: number) =>
+    setBloqueos((b) => b.filter((_, idx) => idx !== i));
+  const updateBloqueo = (i: number, patch: Partial<Bloqueo>) =>
+    setBloqueos((b) =>
+      b.map((it, idx) => (idx === i ? { ...it, ...patch } : it))
+    );
+
+  const addCodigo = () =>
+    setCodigos((c) => [
+      ...c,
+      { codigo: "", tipo: "porcentaje", valor: "", vigencia: "" },
+    ]);
+  const removeCodigo = (i: number) =>
+    setCodigos((c) => c.filter((_, idx) => idx !== i));
+  const updateCodigo = (i: number, patch: Partial<Codigo>) =>
+    setCodigos((c) =>
+      c.map((it, idx) => (idx === i ? { ...it, ...patch } : it))
+    );
+
+  const toggleAccesibilidad = (val: string) =>
+    setAccesibilidad((arr) =>
+      arr.includes(val) ? arr.filter((v) => v !== val) : [...arr, val]
+    );
+  const togglePago = (val: string) =>
+    setMetodosPago((arr) =>
+      arr.includes(val) ? arr.filter((v) => v !== val) : [...arr, val]
+    );
+
+  // — Progress & section completeness
+  const sectionsComplete = useMemo(() => {
+    const c: Record<string, boolean> = {};
+    c.productor =
+      !!productorNombre &&
+      isEmailValid(productorEmail) &&
+      isWhatsappValid(productorWhatsapp);
+    c.venue =
+      !!venueNombre &&
+      !!venueDireccion &&
+      !!venueCiudad &&
+      !!venueCapacidad &&
+      isUrlValid(venueMapa);
+    c.evento =
+      !!eventoNombre &&
+      !!eventoDescripcion &&
+      !!eventoDuracion &&
+      isUrlValid(eventoImagen);
+    c.fechas = funciones.every((f) => f.fecha && f.horaInicio);
+    c.zonas = zonas.every(
+      (z) => z.nombre && z.precio && z.capacidad
+    );
+    c.logistica = true; // todo opcional / con defaults
+    c.promocion = true; // todo opcional
+    c.payout =
+      !!payoutTitular &&
+      !!payoutBanco &&
+      isClabeValid(payoutClabe) &&
+      isRfcValid(payoutRfc);
+    c.notas = true; // opcional
+    return c;
+  }, [
+    productorNombre, productorEmail, productorWhatsapp,
+    venueNombre, venueDireccion, venueCiudad, venueCapacidad, venueMapa,
+    eventoNombre, eventoDescripcion, eventoDuracion, eventoImagen,
+    funciones, zonas,
+    payoutTitular, payoutBanco, payoutClabe, payoutRfc,
+  ]);
+
+  const progress = useMemo(() => {
+    const total = TOC.length;
+    const done = TOC.filter((t) => sectionsComplete[t.id]).length;
+    return Math.round((done / total) * 100);
+  }, [sectionsComplete]);
+
+  const allComplete = useMemo(
+    () => TOC.every((t) => sectionsComplete[t.id]),
+    [sectionsComplete]
+  );
+
+  // — Submit
+  const onPreSubmit = (e: FormEvent) => {
+    e.preventDefault();
+    setShowConfirm(true);
+  };
+
+  const onConfirmSubmit = async () => {
+    setSubmitting(true);
+    setShowConfirm(false);
     try {
       const res = await fetch("/api/submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          ...payload,
+          timestamp: new Date().toISOString(),
+        }),
       });
       if (!res.ok) throw new Error("Submit fallido");
+      // Limpiar borrador al enviar exitoso
+      localStorage.removeItem(DRAFT_KEY);
       router.push("/gracias");
     } catch (err) {
       console.error(err);
-      alert("Hubo un error. Intenta de nuevo.");
+      alert("Hubo un error al enviar. Intenta de nuevo.");
       setSubmitting(false);
     }
   };
+
+  const clearDraft = () => {
+    if (!confirm("¿Borrar todos los datos del formulario? No se puede deshacer."))
+      return;
+    localStorage.removeItem(DRAFT_KEY);
+    location.reload();
+  };
+
+  // — Modal summary
+  const totalCapacidad = zonas.reduce(
+    (a, z) => a + (parseInt(z.capacidad || "0", 10) || 0),
+    0
+  );
+  const rangoPrecios = (() => {
+    const ps = zonas
+      .map((z) => parseInt(z.precio || "0", 10))
+      .filter((n) => n > 0);
+    if (!ps.length) return "—";
+    const min = Math.min(...ps);
+    const max = Math.max(...ps);
+    return min === max ? `$${min}` : `$${min} – $${max}`;
+  })();
+  const fechaPrimera = funciones[0]?.fecha
+    ? new Date(funciones[0].fecha + "T00:00:00").toLocaleDateString("es-MX", {
+        weekday: "short",
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      })
+    : "—";
 
   return (
     <div className="page">
@@ -270,6 +517,9 @@ export default function Home() {
         .page {
           min-height: 100svh;
           padding: 56px 24px 140px;
+        }
+        @media (max-width: 768px) {
+          .page { padding: 40px 16px 120px; }
         }
 
         .layout {
@@ -281,13 +531,10 @@ export default function Home() {
         }
 
         @media (min-width: 1024px) {
-          .layout { grid-template-columns: 220px 1fr; }
+          .layout { grid-template-columns: 240px 1fr; gap: 56px; }
         }
 
-        /* TOC lateral */
-        .toc {
-          display: none;
-        }
+        .toc { display: none; }
 
         @media (min-width: 1024px) {
           .toc {
@@ -296,16 +543,26 @@ export default function Home() {
             top: 56px;
             align-self: start;
             padding-top: 72px;
+            max-height: calc(100svh - 80px);
+            overflow-y: auto;
           }
           .toc-label {
             font-size: 0.66rem;
             letter-spacing: 0.32em;
             text-transform: uppercase;
             color: var(--ink-3);
-            font-weight: 500;
+            font-weight: 600;
             margin-bottom: 18px;
             padding-bottom: 14px;
             border-bottom: 1px solid var(--hairline);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+          }
+          .toc-progress {
+            font-variant-numeric: tabular-nums;
+            color: var(--ink-2);
+            letter-spacing: 0.04em;
           }
           .toc-list {
             list-style: none;
@@ -313,43 +570,45 @@ export default function Home() {
             margin: 0;
             display: flex;
             flex-direction: column;
-            gap: 4px;
+            gap: 2px;
           }
           .toc-item a {
             display: flex;
-            align-items: baseline;
+            align-items: center;
             gap: 12px;
-            padding: 9px 0;
+            padding: 10px 14px 10px 14px;
             color: var(--ink-3);
             text-decoration: none;
             font-size: 0.86rem;
             font-weight: 500;
-            transition: color 0.15s ease;
             border-left: 2px solid transparent;
-            padding-left: 14px;
             margin-left: -16px;
           }
           .toc-item a:hover {
-            color: var(--crimson);
-            border-left-color: var(--crimson);
+            color: var(--ink-2);
           }
           .toc-item-num {
             font-size: 0.66rem;
             letter-spacing: 0.18em;
             color: var(--ink-4);
             font-variant-numeric: tabular-nums;
+            min-width: 18px;
           }
         }
 
-        .container {
-          max-width: 760px;
-        }
+        .container { max-width: 760px; }
 
         .brand {
+          display: flex;
+          align-items: baseline;
+          justify-content: space-between;
+          gap: 8px;
+          margin-bottom: 56px;
+        }
+        .brand-left {
           display: inline-flex;
           align-items: baseline;
           gap: 8px;
-          margin-bottom: 64px;
         }
         .brand-mark {
           font-weight: 700;
@@ -367,20 +626,25 @@ export default function Home() {
         }
 
         .h1 {
-          font-size: clamp(2.1rem, 4.4vw, 3rem);
+          font-size: clamp(2.2rem, 4.6vw, 3.2rem);
           font-weight: 600;
-          line-height: 1.04;
-          letter-spacing: -0.025em;
-          margin: 0 0 18px;
+          line-height: 1.02;
+          letter-spacing: -0.028em;
+          margin: 0 0 22px;
           color: var(--ink);
+        }
+        .h1 em {
+          font-style: italic;
+          color: var(--ink-2);
+          font-weight: 500;
         }
 
         .lead {
-          font-size: 1.04rem;
-          line-height: 1.62;
+          font-size: 1.06rem;
+          line-height: 1.6;
           color: var(--ink-2);
-          max-width: 56ch;
-          margin: 0 0 64px;
+          max-width: 54ch;
+          margin: 0 0 56px;
           font-weight: 400;
         }
 
@@ -391,11 +655,10 @@ export default function Home() {
           padding: 40px;
           margin-bottom: 28px;
           box-shadow: 0 1px 0 rgba(0,0,0,0.02);
-          scroll-margin-top: 32px;
+          scroll-margin-top: 24px;
         }
-
         @media (max-width: 640px) {
-          .section { padding: 28px 22px; border-radius: 14px; }
+          .section { padding: 26px 20px; border-radius: 14px; margin-bottom: 18px; }
         }
 
         .section-head {
@@ -412,11 +675,12 @@ export default function Home() {
           letter-spacing: 0.2em;
           color: var(--crimson);
           font-variant-numeric: tabular-nums;
+          flex-shrink: 0;
         }
         .section-title {
-          font-size: 1.22rem;
+          font-size: 1.24rem;
           font-weight: 600;
-          letter-spacing: -0.01em;
+          letter-spacing: -0.012em;
           color: var(--ink);
           margin: 0;
         }
@@ -424,7 +688,7 @@ export default function Home() {
           font-size: 0.86rem;
           color: var(--ink-3);
           margin: 8px 0 0;
-          line-height: 1.5;
+          line-height: 1.55;
           max-width: 52ch;
         }
 
@@ -437,6 +701,7 @@ export default function Home() {
         @media (max-width: 640px) {
           .field-row.cols-2, .field-row.cols-3, .field-row.cols-4 {
             grid-template-columns: 1fr;
+            gap: 14px;
           }
         }
 
@@ -445,42 +710,23 @@ export default function Home() {
           font-weight: 500;
           color: var(--ink-2);
           letter-spacing: 0.005em;
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
         }
         .label-hint {
           font-weight: 400;
           color: var(--ink-3);
           font-size: 0.72rem;
-          margin-left: 6px;
         }
-
-        .input, .textarea, .select {
-          width: 100%;
-          background: var(--field-bg);
-          border: 1px solid transparent;
-          border-radius: 10px;
-          padding: 13px 16px;
-          font-family: inherit;
-          font-size: 0.95rem;
-          color: var(--ink);
-          transition: background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
-          outline: none;
-        }
-        .input:hover, .textarea:hover, .select:hover {
-          background: #EFEFEF;
-        }
-        .input:focus, .textarea:focus, .select:focus {
-          background: #FFF;
-          border-color: var(--crimson);
-          box-shadow: 0 0 0 4px var(--field-focus);
-        }
-        .textarea { resize: vertical; min-height: 120px; line-height: 1.55; }
 
         .help {
-          font-size: 0.72rem;
+          font-size: 0.74rem;
           color: var(--ink-3);
           margin-top: 2px;
           line-height: 1.5;
         }
+        .help.is-error { color: var(--crimson); }
 
         .radio-row {
           display: flex;
@@ -490,7 +736,7 @@ export default function Home() {
         .radio-pill {
           flex: 1;
           min-width: 110px;
-          padding: 12px 16px;
+          padding: 13px 16px;
           background: var(--field-bg);
           border: 1px solid transparent;
           border-radius: 10px;
@@ -500,8 +746,9 @@ export default function Home() {
           transition: all 0.18s ease;
           text-align: center;
           font-weight: 500;
+          font-family: inherit;
         }
-        .radio-pill:hover { background: #EFEFEF; }
+        .radio-pill:hover { background: var(--field-hover); }
         .radio-pill.active {
           background: #FFF;
           border-color: var(--crimson);
@@ -519,9 +766,19 @@ export default function Home() {
           cursor: pointer;
           transition: background 0.18s ease;
         }
-        .checkbox-row:hover { background: #EFEFEF; }
-        .checkbox-row input { width: 18px; height: 18px; accent-color: var(--crimson); cursor: pointer; }
-        .checkbox-row label { cursor: pointer; font-size: 0.92rem; flex: 1; }
+        .checkbox-row:hover { background: var(--field-hover); }
+        .checkbox-row input {
+          width: 18px;
+          height: 18px;
+          accent-color: var(--crimson);
+          cursor: pointer;
+          flex-shrink: 0;
+        }
+        .checkbox-row label, .checkbox-row span {
+          cursor: pointer;
+          font-size: 0.92rem;
+          flex: 1;
+        }
 
         .check-grid {
           display: grid;
@@ -547,17 +804,20 @@ export default function Home() {
         }
         .repeat-remove {
           position: absolute;
-          top: 18px;
-          right: 18px;
+          top: 16px;
+          right: 16px;
           background: transparent;
           border: none;
           color: var(--ink-3);
-          font-size: 0.78rem;
+          font-size: 0.74rem;
           cursor: pointer;
-          padding: 6px 10px;
+          padding: 6px 8px;
           border-radius: 6px;
-          transition: all 0.18s ease;
+          transition: all 0.15s ease;
           font-family: inherit;
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
         }
         .repeat-remove:hover { color: var(--crimson); background: rgba(179, 58, 53, 0.08); }
 
@@ -571,29 +831,6 @@ export default function Home() {
         .repeat-item .select:hover,
         .repeat-item .textarea:hover { background: #FAFAFA; }
 
-        .btn-add {
-          display: inline-flex;
-          align-items: center;
-          gap: 8px;
-          background: transparent;
-          border: 1px dashed var(--hairline-strong);
-          border-radius: 10px;
-          padding: 13px 22px;
-          color: var(--ink-2);
-          font-family: inherit;
-          font-size: 0.88rem;
-          font-weight: 500;
-          cursor: pointer;
-          transition: all 0.18s ease;
-          margin-top: 8px;
-        }
-        .btn-add:hover {
-          border-color: var(--crimson);
-          color: var(--crimson);
-          background: var(--crimson-soft);
-          border-style: solid;
-        }
-
         .empty-state {
           padding: 18px 22px;
           background: var(--field-bg);
@@ -605,57 +842,87 @@ export default function Home() {
         }
         .empty-state strong { color: var(--ink-2); font-weight: 500; }
 
+        .sub-block {
+          margin-top: 40px;
+          padding-top: 28px;
+          border-top: 1px solid var(--hairline);
+        }
+        .sub-block-head {
+          margin-bottom: 18px;
+        }
+        .sub-block-title {
+          font-size: 0.86rem;
+          font-weight: 600;
+          letter-spacing: 0.18em;
+          text-transform: uppercase;
+          color: var(--ink-2);
+          margin: 0;
+        }
+        .sub-block-desc {
+          font-size: 0.86rem;
+          color: var(--ink-3);
+          margin-top: 6px;
+          line-height: 1.55;
+          max-width: 52ch;
+        }
+
+        .section-head-with-sub {
+          display: flex;
+          align-items: flex-start;
+          gap: 14px;
+        }
+
         .submit-bar {
           display: flex;
           flex-direction: column;
           gap: 14px;
           margin-top: 44px;
         }
-
-        .btn-submit {
-          width: 100%;
-          background: var(--crimson);
-          color: #FFF;
-          border: none;
-          border-radius: 999px;
-          padding: 22px 32px;
-          font-family: inherit;
-          font-weight: 600;
-          font-size: 1.04rem;
-          letter-spacing: 0.005em;
-          cursor: pointer;
-          transition: background 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
-          box-shadow: 0 12px 32px rgba(179, 58, 53, 0.25);
-        }
-        .btn-submit:hover:not(:disabled) {
-          background: var(--crimson-hover);
-          transform: translateY(-1px);
-          box-shadow: 0 16px 40px rgba(179, 58, 53, 0.35);
-        }
-        .btn-submit:active:not(:disabled) {
-          transform: translateY(0);
-          box-shadow: 0 8px 24px rgba(179, 58, 53, 0.30);
-        }
-        .btn-submit:disabled { opacity: 0.6; cursor: not-allowed; }
-
         .submit-help {
           font-size: 0.78rem;
           color: var(--ink-3);
           text-align: center;
-          line-height: 1.5;
+          line-height: 1.55;
+        }
+
+        @media (max-width: 768px) {
+          .submit-bar { margin-bottom: 80px; }
         }
       `}</style>
 
+      {/* Progress bar */}
+      <div className="progress">
+        <div className="progress-fill" style={{ width: `${progress}%` }} />
+      </div>
+
+      {/* Toast guardado */}
+      {loaded && savedAt && (
+        <div className={`toast ${isSaving ? "is-saving" : ""}`}>
+          <span className="toast-dot" />
+          <span>{isSaving ? "Guardando…" : "Borrador guardado"}</span>
+        </div>
+      )}
+
       <div className="layout">
-        {/* TOC sticky lateral (desktop only) */}
         <aside className="toc">
-          <div className="toc-label">Secciones</div>
+          <div className="toc-label">
+            <span>Secciones</span>
+            <span className="toc-progress">{progress}%</span>
+          </div>
           <ul className="toc-list">
             {TOC.map((t) => (
-              <li key={t.id} className="toc-item">
+              <li
+                key={t.id}
+                className={`toc-item ${
+                  activeSection === t.id ? "is-active" : ""
+                } ${sectionsComplete[t.id] ? "is-complete" : ""}`}
+              >
                 <a href={`#${t.id}`}>
                   <span className="toc-item-num">{t.num}</span>
                   <span>{t.label}</span>
+                  <span className="toc-item-check">
+                    <IconCheck size={9} />
+                  </span>
                 </a>
               </li>
             ))}
@@ -664,19 +931,33 @@ export default function Home() {
 
         <div className="container">
           <div className="brand">
-            <span className="brand-mark">dulos</span>
-            <span className="brand-divider">/</span>
-            <span className="brand-label">Alta de evento</span>
+            <div className="brand-left">
+              <span className="brand-mark">dulos</span>
+              <span className="brand-divider">/</span>
+              <span className="brand-label">Alta de evento</span>
+            </div>
+            {loaded && savedAt && (
+              <button
+                type="button"
+                className="btn-ghost"
+                onClick={clearDraft}
+                title="Borrar todos los datos guardados"
+              >
+                Limpiar formulario
+              </button>
+            )}
           </div>
 
-          <h1 className="h1">Registra tu evento</h1>
+          <h1 className="h1">
+            Registra tu evento.
+          </h1>
           <p className="lead">
-            Llena los datos del evento que quieres dar de alta en Dulos. Nuestro
-            equipo revisa la información y te contacta en menos de 24 horas para
-            confirmar publicación, comisiones y fechas.
+            Llena estos datos, revisamos en menos de 24&nbsp;h, y publicamos.
+            Tu progreso se guarda automáticamente — puedes cerrar la pestaña y
+            volver luego sin perder nada.
           </p>
 
-          <form onSubmit={onSubmit}>
+          <form onSubmit={onPreSubmit}>
             {/* 01 — Productor */}
             <section id="productor" className="section">
               <div className="section-head">
@@ -699,28 +980,42 @@ export default function Home() {
                 <div className="field">
                   <label className="label">Email</label>
                   <input
-                    className="input"
+                    className={`input ${
+                      productorEmail && isEmailValid(productorEmail)
+                        ? "is-valid"
+                        : ""
+                    }`}
                     type="email"
                     required
                     value={productorEmail}
                     onChange={(e) => setProductorEmail(e.target.value)}
                     placeholder="hola@productora.com"
                   />
+                  {productorEmail && !isEmailValid(productorEmail) && (
+                    <p className="help is-error">
+                      Email no parece válido. Revisa el formato.
+                    </p>
+                  )}
                 </div>
               </div>
 
-              <div className="field">
-                <label className="label">
-                  WhatsApp <span className="label-hint">con clave país</span>
-                </label>
-                <input
-                  className="input"
-                  type="tel"
-                  required
-                  value={productorWhatsapp}
-                  onChange={(e) => setProductorWhatsapp(e.target.value)}
-                  placeholder="+52 55 0000 0000"
-                />
+              <div className="field" style={{ marginBottom: 0 }}>
+                <label className="label">WhatsApp</label>
+                <div className="input-prefixed">
+                  <span className="input-prefix">🇲🇽 +52</span>
+                  <input
+                    className="input tabular"
+                    type="tel"
+                    required
+                    value={productorWhatsapp}
+                    onChange={(e) =>
+                      setProductorWhatsapp(
+                        e.target.value.replace(/[^\d\s]/g, "")
+                      )
+                    }
+                    placeholder="55 0000 0000"
+                  />
+                </div>
               </div>
             </section>
 
@@ -739,7 +1034,7 @@ export default function Home() {
                   required
                   value={venueNombre}
                   onChange={(e) => setVenueNombre(e.target.value)}
-                  placeholder="Teatro, foro, sala, carpa, etc."
+                  placeholder="Teatro, foro, sala, carpa…"
                 />
               </div>
 
@@ -784,23 +1079,28 @@ export default function Home() {
               <div className="field">
                 <label className="label">
                   Mapa / plano del venue{" "}
-                  <span className="label-hint">link de Drive (silueta mínima)</span>
+                  <span className="label-hint">link de Drive</span>
                 </label>
                 <input
-                  className="input"
+                  className={`input ${
+                    venueMapa && isUrlValid(venueMapa) ? "is-valid" : ""
+                  }`}
                   type="url"
                   required
                   value={venueMapa}
                   onChange={(e) => setVenueMapa(e.target.value)}
-                  placeholder="https://drive.google.com/..."
+                  placeholder="https://drive.google.com/…"
                 />
                 <p className="help">
-                  Sube el plano a Drive o Dropbox y pega el link público.
-                  Si no tienes plano formal, una silueta a mano sirve.
+                  Sube el plano a Drive o Dropbox y pega el link público. Si
+                  no tienes plano formal, una silueta a mano sirve.
                 </p>
               </div>
 
-              <div className="checkbox-row">
+              <div
+                className="checkbox-row"
+                style={{ marginBottom: venueAsientosNumerados ? 18 : 0 }}
+              >
                 <input
                   id="asientos"
                   type="checkbox"
@@ -813,42 +1113,40 @@ export default function Home() {
               </div>
 
               {venueAsientosNumerados && (
-                <div style={{ marginTop: 18 }}>
-                  <div className="field-row cols-3">
-                    <div className="field">
-                      <label className="label">Cantidad de filas</label>
-                      <input
-                        className="input tabular"
-                        type="number"
-                        min={1}
-                        value={venueFilas}
-                        onChange={(e) => setVenueFilas(e.target.value)}
-                        placeholder="20"
-                      />
-                    </div>
-                    <div className="field">
-                      <label className="label">Cantidad de secciones</label>
-                      <input
-                        className="input tabular"
-                        type="number"
-                        min={1}
-                        value={venueSecciones}
-                        onChange={(e) => setVenueSecciones(e.target.value)}
-                        placeholder="3"
-                      />
-                    </div>
-                    <div className="field">
-                      <label className="label">Butacas por fila</label>
-                      <input
-                        className="input"
-                        type="text"
-                        value={venueButacasPorFila}
-                        onChange={(e) =>
-                          setVenueButacasPorFila(e.target.value)
-                        }
-                        placeholder="25 (o variable 20-30)"
-                      />
-                    </div>
+                <div className="field-row cols-3" style={{ marginBottom: 0 }}>
+                  <div className="field">
+                    <label className="label">Filas</label>
+                    <input
+                      className="input tabular"
+                      type="number"
+                      min={1}
+                      value={venueFilas}
+                      onChange={(e) => setVenueFilas(e.target.value)}
+                      placeholder="20"
+                    />
+                  </div>
+                  <div className="field">
+                    <label className="label">Secciones</label>
+                    <input
+                      className="input tabular"
+                      type="number"
+                      min={1}
+                      value={venueSecciones}
+                      onChange={(e) => setVenueSecciones(e.target.value)}
+                      placeholder="3"
+                    />
+                  </div>
+                  <div className="field">
+                    <label className="label">Butacas por fila</label>
+                    <input
+                      className="input"
+                      type="text"
+                      value={venueButacasPorFila}
+                      onChange={(e) =>
+                        setVenueButacasPorFila(e.target.value)
+                      }
+                      placeholder="25 (o variable 20-30)"
+                    />
                   </div>
                 </div>
               )}
@@ -869,7 +1167,7 @@ export default function Home() {
                   required
                   value={eventoNombre}
                   onChange={(e) => setEventoNombre(e.target.value)}
-                  placeholder="Nombre tal como debe aparecer publicado"
+                  placeholder="Como debe aparecer publicado"
                 />
               </div>
 
@@ -905,7 +1203,7 @@ export default function Home() {
                 </div>
                 <div className="field">
                   <label className="label">
-                    Subgénero / etiqueta{" "}
+                    Subgénero{" "}
                     <span className="label-hint">opcional</span>
                   </label>
                   <input
@@ -964,8 +1262,7 @@ export default function Home() {
                     placeholder="30"
                   />
                   <p className="help">
-                    Cuántos minutos antes del inicio se abre el acceso al
-                    recinto.
+                    Cuántos min antes del inicio se abre el recinto.
                   </p>
                 </div>
               </div>
@@ -976,17 +1273,19 @@ export default function Home() {
                   <span className="label-hint">link Drive · vertical 4:5 ideal</span>
                 </label>
                 <input
-                  className="input"
+                  className={`input ${
+                    eventoImagen && isUrlValid(eventoImagen) ? "is-valid" : ""
+                  }`}
                   type="url"
                   required
                   value={eventoImagen}
                   onChange={(e) => setEventoImagen(e.target.value)}
-                  placeholder="https://drive.google.com/..."
+                  placeholder="https://drive.google.com/…"
                 />
               </div>
 
-              <div className="field-row cols-2">
-                <div className="field">
+              <div className="field-row cols-2" style={{ marginBottom: 0 }}>
+                <div className="field" style={{ marginBottom: 0 }}>
                   <label className="label">
                     Galería de fotos{" "}
                     <span className="label-hint">opcional · carpeta Drive</span>
@@ -996,10 +1295,10 @@ export default function Home() {
                     type="url"
                     value={eventoGaleria}
                     onChange={(e) => setEventoGaleria(e.target.value)}
-                    placeholder="https://drive.google.com/drive/folders/..."
+                    placeholder="https://drive.google.com/drive/folders/…"
                   />
                 </div>
-                <div className="field">
+                <div className="field" style={{ marginBottom: 0 }}>
                   <label className="label">
                     Galería de videos{" "}
                     <span className="label-hint">opcional · carpeta Drive</span>
@@ -1009,7 +1308,7 @@ export default function Home() {
                     type="url"
                     value={eventoVideos}
                     onChange={(e) => setEventoVideos(e.target.value)}
-                    placeholder="https://drive.google.com/drive/folders/..."
+                    placeholder="https://drive.google.com/drive/folders/…"
                   />
                 </div>
               </div>
@@ -1055,7 +1354,7 @@ export default function Home() {
                       className="repeat-remove"
                       onClick={() => removeFuncion(i)}
                     >
-                      Quitar
+                      <IconX /> Quitar
                     </button>
                   )}
                   <div className="field-row cols-3">
@@ -1075,15 +1374,14 @@ export default function Home() {
                       />
                       {f.fecha && (
                         <p className="help">
-                          {new Date(f.fecha + "T00:00:00").toLocaleDateString(
-                            "es-MX",
-                            {
-                              weekday: "long",
-                              day: "numeric",
-                              month: "long",
-                              year: "numeric",
-                            }
-                          )}
+                          {new Date(
+                            f.fecha + "T00:00:00"
+                          ).toLocaleDateString("es-MX", {
+                            weekday: "long",
+                            day: "numeric",
+                            month: "long",
+                            year: "numeric",
+                          })}
                         </p>
                       )}
                     </div>
@@ -1117,22 +1415,19 @@ export default function Home() {
               ))}
 
               <button type="button" className="btn-add" onClick={addFuncion}>
-                + Agregar función
+                <IconPlus /> Agregar función
               </button>
             </section>
 
             {/* 05 — Zonas, precios y bloqueos */}
             <section id="zonas" className="section">
-              <div className="section-head">
+              <div className="section-head section-head-with-sub">
+                <span className="section-num">05</span>
                 <div>
-                  <div style={{ display: "flex", alignItems: "baseline", gap: 14 }}>
-                    <span className="section-num">05</span>
-                    <h2 className="section-title">Zonas y precios</h2>
-                  </div>
+                  <h2 className="section-title">Zonas y precios</h2>
                   <p className="section-subtitle">
-                    Define una zona por cada categoría de boleto. Si reservas
-                    asientos para cortesías, prensa o productor, declóralos
-                    abajo en "Asientos bloqueados".
+                    Una zona por cada categoría de boleto. Reserva asientos
+                    aparte si necesitas cortesías o prensa.
                   </p>
                 </div>
               </div>
@@ -1148,7 +1443,7 @@ export default function Home() {
                       className="repeat-remove"
                       onClick={() => removeZona(i)}
                     >
-                      Quitar
+                      <IconX /> Quitar
                     </button>
                   )}
 
@@ -1172,12 +1467,14 @@ export default function Home() {
                         className="select"
                         value={z.tipo}
                         onChange={(e) =>
-                          updateZona(i, { tipo: e.target.value as Zona["tipo"] })
+                          updateZona(i, {
+                            tipo: e.target.value as Zona["tipo"],
+                          })
                         }
                       >
-                        <option value="GA">General (GA)</option>
+                        <option value="GA">General (GA) — entrada libre</option>
                         <option value="Asiento asignado">
-                          Asiento asignado
+                          Asiento asignado — fila + número
                         </option>
                       </select>
                     </div>
@@ -1252,39 +1549,14 @@ export default function Home() {
               ))}
 
               <button type="button" className="btn-add" onClick={addZona}>
-                + Agregar zona
+                <IconPlus /> Agregar zona
               </button>
 
               {/* Sub-feature: asientos bloqueados */}
-              <div
-                style={{
-                  marginTop: 40,
-                  paddingTop: 28,
-                  borderTop: "1px solid var(--hairline)",
-                }}
-              >
-                <div style={{ marginBottom: 18 }}>
-                  <h3
-                    style={{
-                      fontSize: "0.86rem",
-                      fontWeight: 600,
-                      letterSpacing: "0.18em",
-                      textTransform: "uppercase",
-                      color: "var(--ink-2)",
-                      margin: 0,
-                    }}
-                  >
-                    Asientos bloqueados
-                  </h3>
-                  <p
-                    style={{
-                      fontSize: "0.86rem",
-                      color: "var(--ink-3)",
-                      marginTop: 6,
-                      lineHeight: 1.55,
-                      maxWidth: "52ch",
-                    }}
-                  >
+              <div className="sub-block">
+                <div className="sub-block-head">
+                  <h3 className="sub-block-title">Asientos bloqueados</h3>
+                  <p className="sub-block-desc">
                     Asientos que <strong>no se ofrecen al público</strong>:
                     cortesías, prensa, invitados del productor, equipo técnico.
                   </p>
@@ -1307,9 +1579,9 @@ export default function Home() {
                       className="repeat-remove"
                       onClick={() => removeBloqueo(i)}
                     >
-                      Quitar
+                      <IconX /> Quitar
                     </button>
-                    <div className="field-row cols-2">
+                    <div className="field-row cols-2" style={{ marginBottom: 0 }}>
                       <div className="field" style={{ marginBottom: 0 }}>
                         <label className="label">Descripción / asientos</label>
                         <input
@@ -1340,22 +1612,20 @@ export default function Home() {
                 ))}
 
                 <button type="button" className="btn-add" onClick={addBloqueo}>
-                  + Agregar bloqueo
+                  <IconPlus /> Agregar bloqueo
                 </button>
               </div>
             </section>
 
             {/* 06 — Logística */}
             <section id="logistica" className="section">
-              <div className="section-head">
+              <div className="section-head section-head-with-sub">
+                <span className="section-num">06</span>
                 <div>
-                  <div style={{ display: "flex", alignItems: "baseline", gap: 14 }}>
-                    <span className="section-num">06</span>
-                    <h2 className="section-title">Logística y políticas</h2>
-                  </div>
+                  <h2 className="section-title">Logística y políticas</h2>
                   <p className="section-subtitle">
                     Lo que el público necesita saber antes de comprar. Las
-                    políticas por default de Dulos aplican si dejas el campo
+                    políticas por default de Dulos aplican si dejas algún campo
                     vacío.
                   </p>
                 </div>
@@ -1404,7 +1674,7 @@ export default function Home() {
                   className="textarea"
                   value={restricciones}
                   onChange={(e) => setRestricciones(e.target.value)}
-                  placeholder="Sin cámaras profesionales · Sin alimentos del exterior · No se permite reingreso · Etc."
+                  placeholder="Sin cámaras profesionales · Sin alimentos del exterior · No se permite reingreso…"
                   style={{ minHeight: 90 }}
                 />
               </div>
@@ -1412,21 +1682,19 @@ export default function Home() {
               <div className="field">
                 <label className="label">
                   Política de cancelación específica{" "}
-                  <span className="label-hint">opcional · sobreescribe default</span>
+                  <span className="label-hint">opcional · sobrescribe default</span>
                 </label>
                 <textarea
                   className="textarea"
                   value={politicaCancelacion}
                   onChange={(e) => setPoliticaCancelacion(e.target.value)}
-                  placeholder="Default Dulos: sin preguntas hasta 48h antes. Reembolso completo 72h a tarjeta original. Déjalo vacío si aplica el default."
+                  placeholder="Default Dulos: sin preguntas hasta 48 h antes. Reembolso completo en 72 h a tarjeta original."
                   style={{ minHeight: 90 }}
                 />
               </div>
 
               <div className="field">
-                <label className="label">
-                  Métodos de pago a habilitar
-                </label>
+                <label className="label">Métodos de pago a habilitar</label>
                 <div className="check-grid">
                   {METODOS_PAGO_DEFAULT.map((m) => (
                     <label key={m} className="checkbox-row">
@@ -1440,8 +1708,8 @@ export default function Home() {
                   ))}
                 </div>
                 <p className="help">
-                  Todos habilitados por default. Desmarca si no quieres alguno
-                  (raro).
+                  Todos habilitados por default. Desmarca solo si no quieres
+                  alguno.
                 </p>
               </div>
 
@@ -1468,15 +1736,13 @@ export default function Home() {
 
             {/* 07 — Promoción */}
             <section id="promocion" className="section">
-              <div className="section-head">
+              <div className="section-head section-head-with-sub">
+                <span className="section-num">07</span>
                 <div>
-                  <div style={{ display: "flex", alignItems: "baseline", gap: 14 }}>
-                    <span className="section-num">07</span>
-                    <h2 className="section-title">Promoción</h2>
-                  </div>
+                  <h2 className="section-title">Promoción</h2>
                   <p className="section-subtitle">
                     Redes del productor y códigos de descuento para campañas.
-                    Todo es opcional.
+                    Todo opcional.
                   </p>
                 </div>
               </div>
@@ -1484,7 +1750,8 @@ export default function Home() {
               <div className="field-row cols-3">
                 <div className="field">
                   <label className="label">
-                    Instagram <span className="label-hint">@usuario o URL</span>
+                    Instagram{" "}
+                    <span className="label-hint">@usuario o URL</span>
                   </label>
                   <input
                     className="input"
@@ -1515,39 +1782,15 @@ export default function Home() {
                     type="url"
                     value={redWeb}
                     onChange={(e) => setRedWeb(e.target.value)}
-                    placeholder="https://..."
+                    placeholder="https://…"
                   />
                 </div>
               </div>
 
-              <div
-                style={{
-                  marginTop: 24,
-                  paddingTop: 24,
-                  borderTop: "1px solid var(--hairline)",
-                }}
-              >
-                <div style={{ marginBottom: 16 }}>
-                  <h3
-                    style={{
-                      fontSize: "0.86rem",
-                      fontWeight: 600,
-                      letterSpacing: "0.18em",
-                      textTransform: "uppercase",
-                      color: "var(--ink-2)",
-                      margin: 0,
-                    }}
-                  >
-                    Códigos de descuento
-                  </h3>
-                  <p
-                    style={{
-                      fontSize: "0.86rem",
-                      color: "var(--ink-3)",
-                      marginTop: 6,
-                      lineHeight: 1.55,
-                    }}
-                  >
+              <div className="sub-block">
+                <div className="sub-block-head">
+                  <h3 className="sub-block-title">Códigos de descuento</h3>
+                  <p className="sub-block-desc">
                     Códigos que quieres habilitar para campañas, prensa o
                     influencers.
                   </p>
@@ -1570,9 +1813,12 @@ export default function Home() {
                       className="repeat-remove"
                       onClick={() => removeCodigo(i)}
                     >
-                      Quitar
+                      <IconX /> Quitar
                     </button>
-                    <div className="field-row cols-4">
+                    <div
+                      className="field-row cols-4"
+                      style={{ marginBottom: 0 }}
+                    >
                       <div className="field" style={{ marginBottom: 0 }}>
                         <label className="label">Código</label>
                         <input
@@ -1633,19 +1879,17 @@ export default function Home() {
                 ))}
 
                 <button type="button" className="btn-add" onClick={addCodigo}>
-                  + Agregar código
+                  <IconPlus /> Agregar código
                 </button>
               </div>
             </section>
 
             {/* 08 — Payout */}
             <section id="payout" className="section">
-              <div className="section-head">
+              <div className="section-head section-head-with-sub">
+                <span className="section-num">08</span>
                 <div>
-                  <div style={{ display: "flex", alignItems: "baseline", gap: 14 }}>
-                    <span className="section-num">08</span>
-                    <h2 className="section-title">Datos para payout</h2>
-                  </div>
+                  <h2 className="section-title">Datos para payout</h2>
                   <p className="section-subtitle">
                     Cuenta donde Dulos te transferirá las ventas. Solo el
                     equipo administrativo de Dulos ve esta información.
@@ -1674,7 +1918,7 @@ export default function Home() {
                     required
                     value={payoutBanco}
                     onChange={(e) => setPayoutBanco(e.target.value)}
-                    placeholder="BBVA · Santander · Banorte · etc."
+                    placeholder="BBVA · Santander · Banorte…"
                   />
                 </div>
                 <div className="field">
@@ -1683,7 +1927,9 @@ export default function Home() {
                     <span className="label-hint">opcional · para factura</span>
                   </label>
                   <input
-                    className="input tabular"
+                    className={`input tabular ${
+                      payoutRfc && isRfcValid(payoutRfc) ? "is-valid" : ""
+                    }`}
                     type="text"
                     value={payoutRfc}
                     onChange={(e) =>
@@ -1692,6 +1938,11 @@ export default function Home() {
                     placeholder="XAXX010101000"
                     maxLength={13}
                   />
+                  {payoutRfc && !isRfcValid(payoutRfc) && (
+                    <p className="help is-error">
+                      Formato RFC no parece válido.
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -1700,22 +1951,34 @@ export default function Home() {
                   CLABE interbancaria{" "}
                   <span className="label-hint">18 dígitos</span>
                 </label>
-                <input
-                  className="input tabular"
-                  type="text"
-                  required
-                  inputMode="numeric"
-                  pattern="\d{18}"
-                  maxLength={18}
-                  value={payoutClabe}
-                  onChange={(e) =>
-                    setPayoutClabe(e.target.value.replace(/\D/g, ""))
-                  }
-                  placeholder="012345678901234567"
-                />
+                <div className="input-with-suffix">
+                  <input
+                    className={`input tabular ${
+                      isClabeValid(payoutClabe) ? "is-valid" : ""
+                    }`}
+                    type="text"
+                    required
+                    inputMode="numeric"
+                    pattern="\d{18}"
+                    maxLength={18}
+                    value={payoutClabe}
+                    onChange={(e) =>
+                      setPayoutClabe(e.target.value.replace(/\D/g, ""))
+                    }
+                    placeholder="012345678901234567"
+                  />
+                  {isClabeValid(payoutClabe) && (
+                    <span className="input-suffix">
+                      <span className="icon icon-check-success">
+                        <IconCheck size={12} />
+                      </span>
+                    </span>
+                  )}
+                </div>
                 <p className="help">
-                  Necesaria para SPEI. La encuentras en tu app del banco
-                  → Cuenta → CLABE. Solo dígitos, sin espacios.
+                  {payoutClabe.length > 0 && payoutClabe.length < 18
+                    ? `${payoutClabe.length} de 18 dígitos.`
+                    : "Necesaria para SPEI. La encuentras en tu app del banco → Cuenta → CLABE."}
                 </p>
               </div>
 
@@ -1751,7 +2014,7 @@ export default function Home() {
                   className="textarea"
                   value={notas}
                   onChange={(e) => setNotas(e.target.value)}
-                  placeholder="Acuerdos previos, requerimientos técnicos del venue, presupuesto de pauta sugerido, etc."
+                  placeholder="Acuerdos previos, requerimientos técnicos del venue, presupuesto de pauta sugerido…"
                 />
               </div>
             </section>
@@ -1759,19 +2022,107 @@ export default function Home() {
             <div className="submit-bar">
               <button
                 type="submit"
-                className="btn-submit"
-                disabled={submitting}
+                className="btn-primary btn-lg btn-block"
+                disabled={submitting || !allComplete}
               >
-                {submitting ? "Enviando…" : "Enviar registro"}
+                {submitting
+                  ? "Enviando…"
+                  : allComplete
+                  ? "Revisar y enviar"
+                  : `Completa el formulario (${progress}%)`}
+                {!submitting && allComplete && <IconArrow />}
               </button>
               <p className="submit-help">
-                El equipo de Dulos revisará el registro y te contactará por
-                WhatsApp o email en menos de 24 h.
+                Vamos a revisar el resumen antes de enviar. Nada se manda hasta
+                que confirmes.
               </p>
             </div>
           </form>
         </div>
       </div>
+
+      {/* Sticky submit (mobile) */}
+      <div
+        className={`submit-sticky ${
+          showStickySubmit && allComplete ? "is-visible" : ""
+        }`}
+        aria-hidden={!showStickySubmit || !allComplete}
+      >
+        <button
+          type="button"
+          className="btn-primary"
+          onClick={() => setShowConfirm(true)}
+          disabled={submitting}
+        >
+          Revisar y enviar <IconArrow />
+        </button>
+      </div>
+
+      {/* Modal pre-submit */}
+      {showConfirm && (
+        <div
+          className="modal-overlay"
+          onClick={() => setShowConfirm(false)}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <span className="modal-eyebrow">Confirmar envío</span>
+            <h2 className="modal-title">¿Enviar este registro a Dulos?</h2>
+            <div className="modal-summary">
+              <div className="modal-row">
+                <span className="modal-row-label">Evento</span>
+                <span className="modal-row-value">
+                  {eventoNombre || "—"}
+                </span>
+              </div>
+              <div className="modal-row">
+                <span className="modal-row-label">Venue</span>
+                <span className="modal-row-value">{venueNombre || "—"}</span>
+              </div>
+              <div className="modal-row">
+                <span className="modal-row-label">Primera función</span>
+                <span className="modal-row-value">{fechaPrimera}</span>
+              </div>
+              <div className="modal-row">
+                <span className="modal-row-label">Zonas</span>
+                <span className="modal-row-value">
+                  {zonas.length} · {rangoPrecios}
+                </span>
+              </div>
+              <div className="modal-row">
+                <span className="modal-row-label">Capacidad total</span>
+                <span className="modal-row-value">
+                  {totalCapacidad > 0 ? totalCapacidad : "—"}
+                </span>
+              </div>
+            </div>
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => setShowConfirm(false)}
+                disabled={submitting}
+              >
+                Volver a editar
+              </button>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={onConfirmSubmit}
+                disabled={submitting}
+              >
+                {submitting ? "Enviando…" : "Enviar a Dulos"}
+                {!submitting && <IconArrow />}
+              </button>
+            </div>
+            <p className="modal-help">
+              Al enviar, el equipo de Dulos recibirá los datos y te contactará
+              por WhatsApp o email en menos de 24 h.
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
