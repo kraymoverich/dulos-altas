@@ -159,8 +159,6 @@ export default function Home() {
   const [accesibilidad, setAccesibilidad] = useState<string[]>([]);
   const [restricciones, setRestricciones] = useState("");
   const [politicaCancelacion, setPoliticaCancelacion] = useState("");
-  const [metodosPago, setMetodosPago] =
-    useState<string[]>(METODOS_PAGO_DEFAULT);
   const [factura, setFactura] = useState<
     "Sí, productor" | "Sí, venue" | "No"
   >("No");
@@ -227,7 +225,7 @@ export default function Home() {
         accesibilidad,
         restricciones,
         politicaCancelacion,
-        metodosPago,
+        metodosPago: METODOS_PAGO_DEFAULT,
         factura,
       },
       promocion: {
@@ -257,7 +255,7 @@ export default function Home() {
       tipoFechas, funciones,
       zonas, bloqueos,
       edadMinima, accesibilidad, restricciones, politicaCancelacion,
-      metodosPago, factura,
+      factura,
       redInstagram, redFacebook, redWeb, codigos,
       payoutTitular, payoutBanco, payoutClabe, payoutCuenta, payoutRfc,
       notas,
@@ -303,7 +301,6 @@ export default function Home() {
         setAccesibilidad(d.logistica?.accesibilidad || []);
         setRestricciones(d.logistica?.restricciones || "");
         setPoliticaCancelacion(d.logistica?.politicaCancelacion || "");
-        setMetodosPago(d.logistica?.metodosPago || METODOS_PAGO_DEFAULT);
         setFactura(d.logistica?.factura || "No");
         setRedInstagram(d.promocion?.redes?.instagram || "");
         setRedFacebook(d.promocion?.redes?.facebook || "");
@@ -424,12 +421,7 @@ export default function Home() {
     setAccesibilidad((arr) =>
       arr.includes(val) ? arr.filter((v) => v !== val) : [...arr, val]
     );
-  const togglePago = (val: string) =>
-    setMetodosPago((arr) =>
-      arr.includes(val) ? arr.filter((v) => v !== val) : [...arr, val]
-    );
-
-  // — Section completeness
+// — Section completeness
   // Required: deben tener todos sus campos válidos
   // Opcional: palomita solo si el usuario llenó algo (no por default)
   const sectionsComplete = useMemo(() => {
@@ -458,15 +450,11 @@ export default function Home() {
       isRfcValid(payoutRfc);
 
     // Opcionales: completas solo si hay datos no-default
-    const metodosPagoTocado =
-      metodosPago.length !== METODOS_PAGO_DEFAULT.length ||
-      !METODOS_PAGO_DEFAULT.every((m) => metodosPago.includes(m));
     c.logistica =
       edadMinima !== "Todas las edades" ||
       accesibilidad.length > 0 ||
       restricciones.trim() !== "" ||
       politicaCancelacion.trim() !== "" ||
-      metodosPagoTocado ||
       factura !== "No";
     c.promocion =
       redInstagram.trim() !== "" ||
@@ -483,7 +471,7 @@ export default function Home() {
     funciones, zonas,
     payoutTitular, payoutBanco, payoutClabe, payoutRfc,
     edadMinima, accesibilidad, restricciones, politicaCancelacion,
-    metodosPago, factura,
+    factura,
     redInstagram, redFacebook, redWeb, codigos,
     notas,
   ]);
@@ -1768,26 +1756,6 @@ export default function Home() {
                   placeholder="Default Dulos: sin preguntas hasta 48 h antes. Reembolso completo en 72 h a tarjeta original."
                   style={{ minHeight: 90 }}
                 />
-              </div>
-
-              <div className="field">
-                <label className="label">Métodos de pago a habilitar</label>
-                <div className="check-grid">
-                  {METODOS_PAGO_DEFAULT.map((m) => (
-                    <label key={m} className="checkbox-row">
-                      <input
-                        type="checkbox"
-                        checked={metodosPago.includes(m)}
-                        onChange={() => togglePago(m)}
-                      />
-                      <span>{m}</span>
-                    </label>
-                  ))}
-                </div>
-                <p className="help">
-                  Todos habilitados por default. Desmarca solo si no quieres
-                  alguno.
-                </p>
               </div>
 
               <div className="field" style={{ marginBottom: 0 }}>
