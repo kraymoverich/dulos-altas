@@ -2014,7 +2014,7 @@ export default function Home() {
                   className="textarea"
                   value={notas}
                   onChange={(e) => setNotas(e.target.value)}
-                  placeholder="Acuerdos previos, requerimientos técnicos del venue, presupuesto de pauta sugerido…"
+                  placeholder="Acuerdos previos, requerimientos técnicos del venue, contexto del evento…"
                 />
               </div>
             </section>
