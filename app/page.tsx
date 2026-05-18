@@ -965,7 +965,7 @@ export default function Home() {
                   />
                   <p className="help">
                     Cuántos minutos antes del inicio se abre el acceso al
-                    recinto. Estándar: 30 min antes.
+                    recinto.
                   </p>
                 </div>
               </div>
