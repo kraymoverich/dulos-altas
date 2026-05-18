@@ -1040,7 +1040,10 @@ export default function Home() {
                   )}
                   <div className="field-row cols-3">
                     <div className="field">
-                      <label className="label">Fecha</label>
+                      <label className="label">
+                        Fecha{" "}
+                        <span className="label-hint">día / mes / año</span>
+                      </label>
                       <input
                         className="input tabular"
                         type="date"
@@ -1050,6 +1053,19 @@ export default function Home() {
                           updateFuncion(i, { fecha: e.target.value })
                         }
                       />
+                      {f.fecha && (
+                        <p className="help">
+                          {new Date(f.fecha + "T00:00:00").toLocaleDateString(
+                            "es-MX",
+                            {
+                              weekday: "long",
+                              day: "numeric",
+                              month: "long",
+                              year: "numeric",
+                            }
+                          )}
+                        </p>
+                      )}
                     </div>
                     <div className="field">
                       <label className="label">Hora inicio</label>
